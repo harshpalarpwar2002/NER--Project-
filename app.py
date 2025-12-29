@@ -1,44 +1,49 @@
 import streamlit as st
-import spacy
-import spacy_streamlit
+from transformers import pipeline
 
-# 1. Page Configuration for a modern look
-st.set_page_config(page_title="NER Explorer", page_icon="🏷️", layout="wide")
+# Page config
+st.set_page_config(
+    page_title="Deep Learning NER",
+    page_icon="🧠",
+    layout="centered"
+)
 
-# 2. Robust Model Loader (prevents the "Oh No" crash)
+# Title
+st.title("🧠 Deep Learning Named Entity Recognition")
+st.write("Using BERT model from Hugging Face Transformers")
+
+# Load model (cached)
 @st.cache_resource
-def load_model():
-    try:
-        # Tries to load the small English model
-        return spacy.load("en_core_web_sm")
-    except OSError:
-        # Fallback for local setup if not yet downloaded
-        import os
-        os.system("python -m spacy download en_core_web_sm")
-        return spacy.load("en_core_web_sm")
-
-nlp = load_model()
-
-# 3. Main Interface
-st.title("🏷️ Named Entity Recognition (NER) Explorer")
-st.markdown("Extract and visualize entities from your text using **spaCy**.")
-
-# Sidebar for Input
-st.sidebar.header("Input Settings")
-default_text = "Virat Kohli was born in Delhi and plays cricket for India."
-user_input = st.sidebar.text_area("Paste your text here:", value=default_text, height=200)
-
-# 4. Displaying Results
-if user_input:
-    doc = nlp(user_input)
-    
-    # Attractive NER visualization using spacy-streamlit
-    st.subheader("Interactive Entity Visualization")
-    spacy_streamlit.visualize_ner(
-        doc, 
-        labels=nlp.get_pipe("ner").labels, 
-        show_table=True, 
-        title=None
+def load_ner_model():
+    return pipeline(
+        "ner",
+        model="dslim/bert-base-NER",
+        aggregation_strategy="simple"
     )
-else:
-    st.info("Please enter some text to start the analysis.")
+
+ner_model = load_ner_model()
+
+# Input text
+text = st.text_area(
+    "Enter text:",
+    "Virat Kohli was born in Delhi and plays cricket for India",
+    height=120
+)
+
+# Button
+if st.button("Analyze"):
+    if text.strip() == "":
+        st.warning("Please enter some text")
+    else:
+        results = ner_model(text)
+
+        st.subheader("📌 Extracted Entities")
+
+        if results:
+            for ent in results:
+                st.write(f"**Entity:** {ent['word']}")
+                st.write(f"**Label:** {ent['entity_group']}")
+                st.write(f"**Confidence:** {round(ent['score'], 3)}")
+                st.write("---")
+        else:
+            st.info("No entities found")
