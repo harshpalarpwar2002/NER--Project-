@@ -1,46 +1,65 @@
 import streamlit as st
 import spacy
-from spacy import displacy
+import spacy_streamlit
 
-# Load model safely
+# Page configuration for a stylish look
+st.set_page_config(page_title="Entity Explorer", page_icon="🔍", layout="wide")
+
+# Load the spaCy model
 @st.cache_resource
-def load_spacy_model():
+def load_model():
     return spacy.load("en_core_web_sm")
 
-nlp = load_spacy_model()
+nlp = load_model()
 
-# Page config
-st.set_page_config(page_title="NER App", page_icon="🧠")
+# Header Section
+st.title("🔍 Named Entity Recognition (NER) Explorer")
+st.markdown("""
+Extract real-world objects like **People, Places, and Organizations** from your text instantly using spaCy.
+""")
 
-# Title
-st.title("🧠 Named Entity Recognition App")
-st.write("Extract entities like **Person, Location, Organization**")
+st.divider()
 
-# Text input
-text = st.text_area(
-    "Enter text below:",
-    "Virat Kohli was born in Delhi and plays cricket for India",
-    height=120
-)
+# Sidebar for Input
+st.sidebar.header("Configuration")
+default_text = "Virat Kohli was born in Delhi and plays cricket for India."
+user_input = st.sidebar.text_area("Enter Text to Analyze:", value=default_text, height=200)
 
-# Button
-if st.button("Analyze"):
-    if text.strip() == "":
-        st.warning("Please enter some text")
+# Main Interface
+col1, col2 = st.columns([2, 1])
+
+with col1:
+    st.subheader("Visualization")
+    if user_input:
+        doc = nlp(user_input)
+        # Using spacy-streamlit for the attractive "brushed" highlighting
+        spacy_streamlit.visualize_ner(
+            doc, 
+            labels=nlp.get_pipe("ner").labels, 
+            show_table=False, 
+            title=None
+        )
     else:
-        doc = nlp(text)
+        st.warning("Please enter some text in the sidebar to begin.")
 
-        st.subheader("📌 Entities Found")
-
-        if doc.ents:
-            for ent in doc.ents:
-                st.write(f"**Entity:** {ent.text}")
-                st.write(f"**Label:** {ent.label_}")
-                st.write("---")
+with col2:
+    st.subheader("Entity Data")
+    if user_input:
+        doc = nlp(user_input)
+        entities = [(ent.text, ent.label_) for ent in doc.ents]
+        
+        if entities:
+            # Displaying as a clean table
+            import pandas as pd
+            df = pd.DataFrame(entities, columns=["Entity", "Label"])
+            st.dataframe(df, use_container_width=True)
+            
+            # Brief explanation of labels
+            with st.expander("What do these labels mean?"):
+                st.write("**GPE**: Countries, Cities, States")
+                st.write("**PERSON**: People, including fictional")
+                st.write("**ORG**: Companies, Agencies, Institutions")
         else:
-            st.info("No entities found")
+            st.info("No entities detected.")
 
-        # Visualization
-        st.subheader("🎨 Visualization")
-        html = displacy.render(doc, style="ent", jupyter=False)
-        st.components.v1.html(html, height=300, scrolling=True)
+st.sidebar.info("Built with Streamlit & spaCy")
